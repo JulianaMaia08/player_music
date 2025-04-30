@@ -1,12 +1,13 @@
-from django.http import JsonResponse, FileResponse
+from django.http import StreamingHttpResponse, JsonResponse, FileResponse
 from django.views import View
 import os
 from django.conf import settings
 from django.shortcuts import render
 from yt_dlp import YoutubeDL
+import requests
 
 
-class BaixarMusicaView(View):
+class BuscarMusicaView(View):
     def get(self, request):
         musica = request.GET.get('musica')
         lista_musicas = []
@@ -50,27 +51,38 @@ class TocarMusicaView(View):
         if not url:
             return JsonResponse({'erro': 'URL não fornecida'}, status=400)
 
-        output_dir = os.path.join(settings.MEDIA_ROOT, 'temp_audio')
-        os.makedirs(output_dir, exist_ok=True)
-
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
-            'quiet': True,
-            'noplaylist': True,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        }
-
         try:
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'quiet': True,
+                'noplaylist': True,
+            }
 
-            return FileResponse(open(filename, 'rb'), content_type='audio/mpeg')
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                audio_url = info['url']
+
+            def stream():
+                r = requests.get(audio_url, stream=True)
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+
+            response = StreamingHttpResponse(stream(), content_type='audio/mpeg')
+            return response
 
         except Exception as e:
             return JsonResponse({'erro': str(e)}, status=500)
+        
+class PlayerMusicaView(View):
+    def get(self, request):
+        thumb = request.GET.get('thumb')
+        titulo = request.GET.get('titulo')
+        url = request.GET.get('url')
+
+        context = {
+            'thumb_musica': thumb,
+            'titulo_musica': titulo,
+            'url_musica': url,
+        }
+        return render(request, 'player.html', context)

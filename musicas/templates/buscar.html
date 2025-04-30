@@ -82,7 +82,7 @@
                         <div><strong>{{ musica.titulo }}</strong></div>
                         <div class="text-muted">{{ musica.canal }}</div>
                     </div>
-                    <button class="btn btn-play" onclick="tocarMusica('{{ musica.link }}')">▶ Tocar</button>
+                    <button class="btn btn-play" onclick="redirecionarParaPlayer('{{ musica.thumb }}', '{{ musica.titulo }}', '{{ musica.link }}')">▶ Tocar</button>
                 </div>
             {% endfor %}
         {% elif request.GET.musica %}
@@ -91,24 +91,10 @@
 
         <audio id="player" controls class="audio-player" style="display: none;"></audio>
     </div>
-
     <script>
-        async function tocarMusica(link) {
-            const player = document.getElementById('player');
-            player.style.display = 'none';
-            player.pause();
-            player.removeAttribute('src');
-
-            const response = await fetch(`/tocar-musica/?url=${encodeURIComponent(link)}`);
-            if (response.ok) {
-                const blob = await response.blob();
-                const audioURL = URL.createObjectURL(blob);
-                player.src = audioURL;
-                player.style.display = 'block';
-                player.play();
-            } else {
-                alert("Erro ao tocar música.");
-            }
+        function redirecionarParaPlayer(thumb, titulo, link) {
+            const url = `/player/?thumb=${encodeURIComponent(thumb)}&titulo=${encodeURIComponent(titulo)}&url=${encodeURIComponent(link)}`;
+            window.location.href = url;
         }
     </script>
 </body>
