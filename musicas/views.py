@@ -4,7 +4,7 @@ import os
 from django.conf import settings
 from django.shortcuts import render
 from yt_dlp import YoutubeDL
-import requests
+import subprocess
 
 
 class BuscarMusicaView(View):
@@ -19,7 +19,7 @@ class BuscarMusicaView(View):
             'extractaudio': False,
             'audioformat': 'mp3',
             'outtmpl': '%(title)s.%(ext)s',
-            'default_search': 'ytsearch5',
+            'default_search': 'ytsearch20',
             'skip_download': True,
             'force_generic_extractor': True
         }
@@ -61,12 +61,19 @@ class TocarMusicaView(View):
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 audio_url = info['url']
+            
+            ffmpeg = subprocess.Popen(
+                ['ffmpeg', '-i', audio_url, '-f', 'mp3', '-'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
 
             def stream():
-                r = requests.get(audio_url, stream=True)
-                for chunk in r.iter_content(chunk_size=8192):
-                    if chunk:
-                        yield chunk
+                while True:
+                    pedaço = ffmpeg.stdout.read(8192)
+                    if not pedaço:
+                        break
+                    yield pedaço
 
             response = StreamingHttpResponse(stream(), content_type='audio/mpeg')
             return response
